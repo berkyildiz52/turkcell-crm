@@ -1,0 +1,138 @@
+services:
+  config-server:
+    build: ./configserver
+    ports:
+      - "8050:8050"
+    networks:
+      - common
+  discovery-server:
+    build: ./discoveryserver
+    ports:
+      - "8888:8888"
+    networks:
+      - common
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    depends_on:
+      - config-server
+    restart: on-failure
+
+  gateway-server:
+    build: ./gatewayserver
+    ports:
+      - "8001:8001"
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    depends_on:
+      - config-server
+      - discovery-server
+    restart: on-failure
+    networks:
+      - common
+  customer-service:
+    build: ./customerservice
+    ports:
+      - "8079:8083"
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    restart: on-failure
+    depends_on:
+      - postgres
+      - discovery-server
+      - config-server
+    networks:
+      - common
+  order-service:
+    build: ./orderservice
+    ports:
+      - "8077:8081"
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    depends_on:
+      - mongodb
+      - discovery-server
+      - config-server
+    networks:
+      - common
+    restart: on-failure
+
+  invoice-service:
+    build: ./invoiceservice
+    ports:
+      - "8078:8084"
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    restart: on-failure
+    depends_on:
+      - postgres
+      - discovery-server
+      - config-server
+    networks:
+      - common
+
+
+  product-service:
+    build: ./productservice
+    ports:
+      - "8076:8077"
+    environment:
+      - SPRING_CLOUD_CONFIG_PROFILE=prod
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_CONFIG_PROFILE=prod
+      - CONFIGURL=http://config-server:8050/
+    restart: on-failure
+    depends_on:
+      - postgres
+      - discovery-server
+      - config-server
+    networks:
+      - common
+
+
+  mongodb:
+    image: mongo
+    ports:
+      - "27018:27018"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+    volumes:
+      - mongo-volume:/data/db
+    networks:
+      - common
+  postgres:
+    image: postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=test
+    volumes:
+      - postgresql-volume:/var/lib/postgresql/data
+    networks:
+      - common
+
+volumes:
+  postgresql-volume:
+    name: postgresql-volume
+  mongo-volume:
+    name: mongo-volume
+
+networks:
+  common:
+    driver: bridge
+
